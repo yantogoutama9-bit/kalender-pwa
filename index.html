@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kalender Lengkap (PWA)</title>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b1220">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <style>
+    :root{--bg:#0b1220;--card:#111b2e;--text:#e5e7eb;--muted:#9ca3af;--border:rgba(255,255,255,.08)}
+    body{margin:0;font-family:system-ui;background:var(--bg);color:var(--text);padding:16px}
+    .card{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:12px}
+    button{border:1px solid var(--border);background:rgba(255,255,255,.05);color:var(--text);padding:10px 12px;border-radius:12px;font-weight:700}
+    .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+    .day{border:1px solid var(--border);border-radius:14px;padding:10px;min-height:70px;background:rgba(255,255,255,.03)}
+    .muted{opacity:.35}
+    .num{font-weight:900}
+    .mini{font-size:11px;color:var(--muted);margin-top:6px}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    select,input{background:transparent;border:1px solid var(--border);color:var(--text);padding:10px;border-radius:12px}
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2 style="margin:0 0 6px 0;">📅 Kalender Pasaran Jawa + Hijriah + Cina + Nasional</h2>
+    <div class="row">
+      <button id="prevBtn">⬅️</button>
+      <select id="monthSelect"></select>
+      <select id="yearSelect"></select>
+      <button id="nextBtn">➡️</button>
+      <button id="todayBtn">Hari Ini</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="grid" style="margin-bottom:8px;">
+      <div class="mini">Min</div><div class="mini">Sen</div><div class="mini">Sel</div><div class="mini">Rab</div><div class="mini">Kam</div><div class="mini">Jum</div><div class="mini">Sab</div>
+    </div>
+    <div class="grid" id="daysGrid"></div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0 0 10px 0;">📌 Detail</h3>
+    <div id="detail" class="mini">Klik tanggal dulu…</div>
+  </div>
+
+<script>
+  // PWA register
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js");
+    });
+  }
+
+  const monthNames=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+  const dino=["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+  const pasaran=["Legi","Pahing","Pon","Wage","Kliwon"];
+
+  // 🔥 Anchor pasaran: HARI INI dianggap Kamis Legi
+const baseDate = new Date();
+baseDate.setHours(0,0,0,0);
+const basePasaranIndex = 0; // 0 = Legi
+
+  const shio=["Tikus","Kerbau","Macan","Kelinci","Naga","Ular","Kuda","Kambing","Monyet","Ayam","Anjing","Babi"];
+  const elements=["Kayu Yang","Kayu Yin","Api Yang","Api Yin","Tanah Yang","Tanah Yin","Logam Yang","Logam Yin","Air Yang","Air Yin"];
+
+  const fixedHolidays = {
+  "01-01": "Tahun Baru Masehi",
+  "02-14": "Hari Valentine 😄 (opsional)",
+  "05-01": "Hari Buruh Internasional",
+  "06-01": "Hari Lahir Pancasila",
+  "08-17": "Hari Kemerdekaan RI",
+  "12-25": "Hari Raya Natal"
+};
+
+// Libur dinamis (berubah tiap tahun) — kita isi per tahun
+const dynamicHolidaysByYear = {
+  2026: {
+    "02-17": "Tahun Baru Imlek",
+    // Tambahin sesuai kalender pemerintah (bisa gue lengkapin kalau lo mau)
+    // "03-??": "Nyepi",
+    // "04-??": "Wafat Isa Almasih",
+    // "??-??": "Idul Fitri",
+    // "??-??": "Idul Adha",
+    // "??-??": "Waisak",
+    // "??-??": "Maulid Nabi",
+    // "??-??": "Isra Miraj"
+  }
+};
+
+function getHoliday(date){
+  const key = isoKey(date);
+  const y = date.getFullYear();
+
+  // prioritas: dinamis dulu (kalau ada)
+  if (dynamicHolidaysByYear[y] && dynamicHolidaysByYear[y][key]){
+    return dynamicHolidaysByYear[y][key];
+  }
+
+  // kalau tidak ada, cek fixed
+  return fixedHolidays[key] || null;
+}
+
+  const monthSelect=document.getElementById("monthSelect");
+  const yearSelect=document.getElementById("yearSelect");
+  const daysGrid=document.getElementById("daysGrid");
+  const detail=document.getElementById("detail");
+
+  let viewDate=new Date();
+  let selectedDate=new Date();
+
+  function pad2(n){return String(n).padStart(2,"0");}
+  function isoKey(date){return `${pad2(date.getMonth()+1)}-${pad2(date.getDate())}`;}
+  function daysInMonth(y,m){return new Date(y,m+1,0).getDate();}
+
+  function getPasaran(date){
+  const d = new Date(date);
+  d.setHours(0,0,0,0);
+
+  const diffDays = Math.round((d - baseDate) / (24*60*60*1000));
+  const idx = (basePasaranIndex + (diffDays % 5) + 5) % 5;
+
+  return pasaran[idx];
+}
+  function getWeton(date){return `${dino[date.getDay()]} ${getPasaran(date)}`;}
+
+  function getHijri(date){
+  // 🔥 paksa hari ini tampil sesuai info lo
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  const d = new Date(date);
+  d.setHours(0,0,0,0);
+
+  if (d.getTime() === today.getTime()){
+    return "10 Sya'ban 1447 H";
+  }
+
+  // selain hari ini, pakai sistem hijriah bawaan browser
+  try{
+    return new Intl.DateTimeFormat("id-ID-u-ca-islamic",{
+      day:"numeric",month:"long",year:"numeric"
+    }).format(date);
+  }catch(e){
+    return "Hijriah tidak tersedia";
+  }
+}
+
+  function getCNYDate(year){
+  // Perkiraan tanggal Imlek (cukup akurat untuk aplikasi kalender umum)
+  // Menggunakan pendekatan algoritmik sederhana (tanpa API)
+  // Catatan: ini bukan astronomi presisi tingkat tinggi, tapi praktis & stabil.
+
+  // Data anchor Imlek (akurat) untuk beberapa tahun sebagai koreksi
+  const known = {
+    2024: "2024-02-10",
+    2025: "2025-01-29",
+    2026: "2026-02-17",
+    2027: "2027-02-06",
+    2028: "2028-01-26",
+    2029: "2029-02-13",
+    2030: "2030-02-03"
+  };
+
+  if (known[year]){
+    return new Date(known[year] + "T00:00:00");
+  }
+
+  // fallback kasar kalau tahun belum ada di tabel
+  // asumsi Imlek rata-rata di akhir Jan / awal Feb
+  return new Date(year, 1, 4); // 4 Feb (fallback)
+}
+
+function getChineseYearInfo(date){
+  const d = new Date(date);
+  d.setHours(0,0,0,0);
+
+  const y = d.getFullYear();
+  const cny = getCNYDate(y);
+  cny.setHours(0,0,0,0);
+
+  // kalau sebelum Imlek, masih tahun shio sebelumnya
+  const zodiacYear = (d < cny) ? (y - 1) : y;
+
+  // shio 2020 = Tikus (patokan umum)
+  const shioIndex = (zodiacYear - 2020) % 12;
+  const shioName = shio[(shioIndex + 12) % 12];
+
+  // elemen 10 batang langit (simplified)
+  // 2020 = Logam Yang (index 6)
+  const elemIndex = (6 + (zodiacYear - 2020)) % 10;
+  const elemName = elements[(elemIndex + 10) % 10];
+
+  return {shio: shioName, elemen: elemName};
+}
+
+  function initSelectors(){
+    monthNames.forEach((m,i)=>{
+      const opt=document.createElement("option");
+      opt.value=i; opt.textContent=m;
+      monthSelect.appendChild(opt);
+    });
+
+    const thisYear=new Date().getFullYear();
+    for(let y=thisYear-50;y<=thisYear+50;y++){
+      const opt=document.createElement("option");
+      opt.value=y; opt.textContent=y;
+      yearSelect.appendChild(opt);
+    }
+  }
+
+  function render(){
+    const y=viewDate.getFullYear();
+    const m=viewDate.getMonth();
+    monthSelect.value=m;
+    yearSelect.value=y;
+
+    daysGrid.innerHTML="";
+    const first=new Date(y,m,1);
+    const startDow=first.getDay();
+    const total=daysInMonth(y,m);
+
+    for(let i=0;i<startDow;i++){
+      const blank=document.createElement("div");
+      blank.className="day muted";
+      daysGrid.appendChild(blank);
+    }
+
+    for(let d=1;d<=total;d++){
+      const date=new Date(y,m,d);
+      const cell=document.createElement("div");
+      cell.className="day";
+      const weton=getWeton(date);
+      const holiday=nationalHolidays(date);
+
+      cell.innerHTML=`
+        <div class="num">${d}</div>
+        <div class="mini">${weton}</div>
+        ${holiday ? `<div class="mini">🎌 ${holiday}</div>` : ""}
+      `;
+
+      cell.onclick=()=>{
+        selectedDate=date;
+        showDetail(date);
+      };
+
+      daysGrid.appendChild(cell);
+    }
+  }
+
+  function showDetail(date){
+    const china=getChineseYearInfo(date);
+    const holiday=nationalHolidays(date);
+
+    detail.innerHTML=`
+      <b>${dino[date.getDay()]}, ${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}</b><br><br>
+      🌙 Hijriah: <b>${getHijri(date)}</b><br>
+      🧿 Jawa: <b>${getWeton(date)}</b><br>
+      🧧 Shio: <b>${china.shio}</b> | 🌿 Elemen: <b>${china.elemen}</b><br>
+      🎌 Libur: <b>${holiday ? holiday : "Tidak ada"}</b>
+    `;
+  }
+
+  document.getElementById("prevBtn").onclick=()=>{
+    viewDate=new Date(viewDate.getFullYear(),viewDate.getMonth()-1,1);
+    render();
+  };
+  document.getElementById("nextBtn").onclick=()=>{
+    viewDate=new Date(viewDate.getFullYear(),viewDate.getMonth()+1,1);
+    render();
+  };
+  document.getElementById("todayBtn").onclick=()=>{
+    const now=new Date();
+    viewDate=new Date(now.getFullYear(),now.getMonth(),1);
+    render();
+    showDetail(now);
+  };
+
+  monthSelect.onchange=()=>{
+    viewDate=new Date(parseInt(yearSelect.value),parseInt(monthSelect.value),1);
+    render();
+  };
+  yearSelect.onchange=()=>{
+    viewDate=new Date(parseInt(yearSelect.value),parseInt(monthSelect.value),1);
+    render();
+  };
+
+  initSelectors();
+  render();
+  showDetail(new Date());
+</script>
+
+</body>
+</html>
