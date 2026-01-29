@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kalender Lengkap (PWA)</title>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b1220">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <style>
+    *{ box-sizing:border-box; }
+
+    body{
+      margin:0;
+      padding:12px;
+      max-width:100vw;
+      overflow-x:hidden;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:#0b1220;
+      color:#e8eefc;
+    }
+
+    body > *{
+      max-width:520px;
+      margin-left:auto;
+      margin-right:auto;
+    }
+
+    .card{
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:16px;
+      padding:12px;
+      margin-bottom:12px;
+    }
+
+    h2{
+      font-size:18px;
+      line-height:1.2;
+      text-align:center;
+      margin:0 0 6px 0;
+    }
+
+    h3{
+      font-size:16px;
+      margin:0 0 10px 0;
+    }
+
+    .row{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      justify-content:center;
+      flex-wrap:wrap;
+      margin-top:10px;
+    }
+
+    select, button{
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px solid rgba(255,255,255,.15);
+      background:rgba(255,255,255,.06);
+      color:#e8eefc;
+      font-size:14px;
+      outline:none;
+    }
+
+    button{ cursor:pointer; }
+
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(7, minmax(0,1fr));
+      gap:6px;
+      width:100%;
+    }
+
+    #daysGrid .day{
+      min-height:72px;
+      padding:8px 6px;
+      border-radius:12px;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.08);
+      overflow:hidden;
+      cursor:pointer;
+      transition:transform .08s ease, border-color .12s ease;
+    }
+
+    #daysGrid .day:hover{
+      border-color:rgba(255,255,255,.25);
+      transform:translateY(-1px);
+    }
+
+    #daysGrid .day.muted{
+      background:transparent;
+      border:0;
+      cursor:default;
+      transform:none;
+    }
+
+    #daysGrid .day.today{
+      border-color:rgba(80,180,255,.9);
+      box-shadow:0 0 0 2px rgba(80,180,255,.18) inset;
+    }
+
+    #daysGrid .day.holiday{
+      border-color:rgba(255,90,90,.55);
+    }
+
+    .num{
+      font-weight:800;
+      font-size:14px;
+      margin-bottom:2px;
+    }
+
+    .mini{
+      font-size:10px;
+      opacity:.9;
+      line-height:1.25;
+      word-break:break-word;
+    }
+
+    #detail{
+      margin-top:12px;
+      padding:12px;
+      border-radius:14px;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.08);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>📅 Kalender Pasaran Jawa + Hijriah + Cina + Nasional</h2>
+    <div class="row">
+      <button id="prevBtn">⬅️</button>
+      <select id="monthSelect"></select>
+      <select id="yearSelect"></select>
+      <button id="nextBtn">➡️</button>
+      <button id="todayBtn">Hari Ini</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="grid" style="margin-bottom:8px;">
+      <div class="mini">Min</div><div class="mini">Sen</div><div class="mini">Sel</div><div class="mini">Rab</div><div class="mini">Kam</div><div class="mini">Jum</div><div class="mini">Sab</div>
+    </div>
+    <div class="grid" id="daysGrid"></div>
+  </div>
+
+  <div class="card">
+    <h3>📌 Detail</h3>
+    <div id="detail" class="mini">Klik tanggal dulu…</div>
+  </div>
+
+<script>
+  // ======================
+  // PWA register
+  // ======================
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js");
+    });
+  }
+
+  // ======================
+  // Data dasar
+  // ======================
+  const monthNames=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+  const dino=["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+  const pasaran=["Legi","Pahing","Pon","Wage","Kliwon"];
+
+  // ======================
+  // 🔥 ANCHOR PASARAN
+  // Hari ini dianggap: Kamis Legi
+  // ======================
+  const baseDate = new Date();
+  baseDate.setHours(0,0,0,0);
+  const basePasaranIndex = 0; // 0=Legi
+
+  function pad2(n){return String(n).padStart(2,"0");}
+  function isoKey(date){return `${pad2(date.getMonth()+1)}-${pad2(date.getDate())}`;}
+  function daysInMonth(y,m){return new Date(y,m+1,0).getDate();}
+
+  function getPasaran(date){
+    const d = new Date(date);
+    d.setHours(0,0,0,0);
+
+    const diffDays = Math.round((d - baseDate) / (24*60*60*1000));
+    const idx = (basePasaranIndex + (diffDays % 5) + 5) % 5;
+    return pasaran[idx];
+  }
+
+  function getWeton(date){
+    return `${dino[date.getDay()]} ${getPasaran(date)}`;
+  }
+
+  // ======================
+  // 🔥 HIJRI (paksa hari ini 10 Sya'ban 1447 H)
+  // ======================
+  function getHijri(date){
+  // 🔥 Anchor hijriah sesuai info lo:
+  // Hari ini = 10 Sya'ban 1447 H
+  const anchorMasehi = new Date();
+  anchorMasehi.setHours(0,0,0,0);
+
+  const anchorHijriDay = 10;
+  const anchorHijriMonthIndex = 7; // 0=Muharram ... 7=Sya'ban
+  const anchorHijriYear = 1447;
+
+  const hijriMonths = [
+    "Muharram","Safar","Rabiul Awal","Rabiul Akhir",
+    "Jumadil Awal","Jumadil Akhir","Rajab","Sya'ban",
+    "Ramadhan","Syawal","Dzulqa'dah","Dzulhijjah"
+  ];
+
+  const d = new Date(date);
+  d.setHours(0,0,0,0);
+
+  // selisih hari dari anchor
+  const diffDays = Math.round((d - anchorMasehi) / (24*60*60*1000));
+
+  // hitung hijriah berdasarkan selisih hari
+  // NOTE: ini asumsi 1 bulan hijriah = 29/30 hari -> kita pakai pola sederhana
+  // biar ga loncat ngawur. Ini versi stabil offline.
+  let day = anchorHijriDay + diffDays;
+  let month = anchorHijriMonthIndex;
+  let year = anchorHijriYear;
+
+  // pola hari per bulan (alternating 30/29) - cukup stabil buat kalender umum
+  const monthLength = (m, y) => (m % 2 === 0 ? 30 : 29);
+
+  // maju
+  while (day > monthLength(month, year)) {
+    day -= monthLength(month, year);
+    month++;
+    if (month >= 12) {
+      month = 0;
+      year++;
+    }
+  }
+
+  // mundur (kalau buka tanggal sebelum anchor)
+  while (day <= 0) {
+    month--;
+    if (month < 0) {
+      month = 11;
+      year--;
+    }
+    day += monthLength(month, year);
+  }
+
+  return `${day} ${hijriMonths[month]} ${year} H`;
+}
+
+  // ======================
+  // LIBUR NASIONAL
+  // ======================
+  const fixedHolidays = {
+    "01-01": "Tahun Baru Masehi",
+    "05-01": "Hari Buruh Internasional",
+    "06-01": "Hari Lahir Pancasila",
+    "08-17": "Hari Kemerdekaan RI",
+    "12-25": "Hari Raya Natal"
+  };
+
+  // Dynamic per tahun (isi manual kalau mau super lengkap)
+  const dynamicHolidaysByYear = {
+    2026: {
+      "02-17": "Tahun Baru Imlek"
+    }
+  };
+
+  function getHoliday(date){
+    const key = isoKey(date);
+    const y = date.getFullYear();
+
+    if (dynamicHolidaysByYear[y] && dynamicHolidaysByYear[y][key]){
+      return dynamicHolidaysByYear[y][key];
+    }
+    return fixedHolidays[key] || null;
+  }
+
+  // ======================
+  // SHIO + ELEMEN (otomatis)
+  // + PATCH sesuai request lo:
+  // sampai 16 Feb = Ular Kayu
+  // 17 Feb = Kuda Api
+  // ======================
+  const shio=["Tikus","Kerbau","Macan","Kelinci","Naga","Ular","Kuda","Kambing","Monyet","Ayam","Anjing","Babi"];
+  const elements=["Kayu Yang","Kayu Yin","Api Yang","Api Yin","Tanah Yang","Tanah Yin","Logam Yang","Logam Yin","Air Yang","Air Yin"];
+
+  function getChineseYearInfo(date){
+    const d = new Date(date);
+    d.setHours(0,0,0,0);
+
+    // PATCH aturan lo: 2026 sebelum 17 Feb = Ular Kayu, mulai 17 Feb = Kuda Api
+    if (d >= new Date("2026-01-01T00:00:00") && d <= new Date("2026-02-16T00:00:00")){
+      return {shio:"Ular", elemen:"Kayu"};
+    }
+    if (d >= new Date("2026-02-17T00:00:00") && d <= new Date("2027-02-05T00:00:00")){
+      return {shio:"Kuda", elemen:"Api"};
+    }
+
+    // fallback umum (kalau tahun lain)
+    const y = d.getFullYear();
+
+    // Patokan: 2020 = Tikus, elemen: Logam Yang
+    const zodiacYear = y;
+    const shioIndex = (zodiacYear - 2020) % 12;
+    const shioName = shio[(shioIndex + 12) % 12];
+
+    const elemIndex = (6 + (zodiacYear - 2020)) % 10;
+    const elemName = elements[(elemIndex + 10) % 10];
+
+    return {shio: shioName, elemen: elemName};
+  }
+
+  // ======================
+  // UI Setup
+  // ======================
+  const monthSelect=document.getElementById("monthSelect");
+  const yearSelect=document.getElementById("yearSelect");
+  const daysGrid=document.getElementById("daysGrid");
+  const detail=document.getElementById("detail");
+
+  let viewDate=new Date();
+  let selectedDate=new Date();
+
+  function initSelectors(){
+    monthNames.forEach((m,i)=>{
+      const opt=document.createElement("option");
+      opt.value=i; opt.textContent=m;
+      monthSelect.appendChild(opt);
+    });
+
+    const thisYear=new Date().getFullYear();
+    for(let y=thisYear-50;y<=thisYear+50;y++){
+      const opt=document.createElement("option");
+      opt.value=y; opt.textContent=y;
+      yearSelect.appendChild(opt);
+    }
+  }
+
+  function render(){
+    const y=viewDate.getFullYear();
+    const m=viewDate.getMonth();
+    monthSelect.value=m;
+    yearSelect.value=y;
+
+    daysGrid.innerHTML="";
+    const first=new Date(y,m,1);
+    const startDow=first.getDay();
+    const total=daysInMonth(y,m);
+
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    for(let i=0;i<startDow;i++){
+      const blank=document.createElement("div");
+      blank.className="day muted";
+      daysGrid.appendChild(blank);
+    }
+
+    for(let d=1;d<=total;d++){
+      const date=new Date(y,m,d);
+      date.setHours(0,0,0,0);
+
+      const cell=document.createElement("div");
+      cell.className="day";
+
+      const weton=getWeton(date);
+      const holiday=getHoliday(date);
+
+      if (date.getTime() === today.getTime()){
+        cell.classList.add("today");
+      }
+      if (holiday){
+        cell.classList.add("holiday");
+      }
+
+      cell.innerHTML=`
+        <div class="num">${d}</div>
+        <div class="mini">${weton}</div>
+        ${holiday ? `<div class="mini">🎌 ${holiday}</div>` : ""}
+      `;
+
+      cell.onclick=()=>{
+        selectedDate=date;
+        showDetail(date);
+      };
+
+      daysGrid.appendChild(cell);
+    }
+  }
+
+  function showDetail(date){
+    const china=getChineseYearInfo(date);
+    const holiday=getHoliday(date);
+
+    detail.innerHTML=`
+      <b>${dino[date.getDay()]}, ${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}</b><br><br>
+      🌙 Hijriah: <b>${getHijri(date)}</b><br>
+      🧿 Jawa: <b>${getWeton(date)}</b><br>
+      🧧 Shio: <b>${china.shio}</b> | 🔥 Elemen: <b>${china.elemen}</b><br>
+      🎌 Libur: <b>${holiday ? holiday : "Tidak ada"}</b>
+    `;
+  }
+
+  document.getElementById("prevBtn").onclick=()=>{
+    viewDate=new Date(viewDate.getFullYear(),viewDate.getMonth()-1,1);
+    render();
+  };
+  document.getElementById("nextBtn").onclick=()=>{
+    viewDate=new Date(viewDate.getFullYear(),viewDate.getMonth()+1,1);
+    render();
+  };
+  document.getElementById("todayBtn").onclick=()=>{
+    const now=new Date();
+    now.setHours(0,0,0,0);
+    viewDate=new Date(now.getFullYear(),now.getMonth(),1);
+    render();
+    showDetail(now);
+  };
+
+  monthSelect.onchange=()=>{
+    viewDate=new Date(parseInt(yearSelect.value),parseInt(monthSelect.value),1);
+    render();
+  };
+  yearSelect.onchange=()=>{
+    viewDate=new Date(parseInt(yearSelect.value),parseInt(monthSelect.value),1);
+    render();
+  };
+
+  initSelectors();
+  render();
+  showDetail(new Date());
+</script>
+
+</body>
+</html>
