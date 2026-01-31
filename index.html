@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kalender Lengkap (PWA)</title>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b1220">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <style>
+    *{ box-sizing:border-box; }
+
+    body{
+      margin:0;
+      padding:12px;
+      max-width:100vw;
+      overflow-x:hidden;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:#0b1220;
+      color:#e8eefc;
+    }
+
+    body > *{
+      max-width:520px;
+      margin-left:auto;
+      margin-right:auto;
+    }
+
+    h1{
+      font-size:20px;
+      line-height:1.2;
+      margin:10px 0 12px;
+      text-align:center;
+    }
+
+    .card{
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:16px;
+      padding:12px;
+      margin-bottom:12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.25);
+    }
+
+    .toolbar{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      justify-content:center;
+      flex-wrap:wrap;
+      margin-top:10px;
+    }
+
+    .toolbar2{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      justify-content:center;
+      flex-wrap:wrap;
+      margin-top:10px;
+    }
+
+    select, button, input[type="date"]{
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.15);
+      background:rgba(255,255,255,.08);
+      color:#e8eefc;
+      font-size:14px;
+      outline:none;
+    }
+
+    button{
+      cursor:pointer;
+      font-weight:600;
+    }
+
+    button:active{
+      transform:scale(.98);
+    }
+
+    .hint{
+      font-size:12px;
+      opacity:.85;
+      text-align:center;
+      margin-top:8px;
+    }
+
+    .grid-head{
+      display:grid;
+      grid-template-columns:repeat(7, minmax(0,1fr));
+      gap:6px;
+      margin-bottom:8px;
+      text-align:center;
+      font-size:12px;
+      opacity:.9;
+    }
+
+    #daysGrid{
+      display:grid;
+      grid-template-columns:repeat(7, minmax(0,1fr));
+      gap:6px;
+      width:100%;
+    }
+
+    .day{
+      min-height:72px;
+      padding:6px;
+      border-radius:14px;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+      overflow:hidden;
+      cursor:pointer;
+      transition: transform .06s ease;
+    }
+
+    .day:hover{
+      transform: translateY(-1px);
+    }
+
+    .day.muted{
+      background:transparent;
+      border:0;
+      cursor:default;
+    }
+
+    .day .num{
+      font-weight:800;
+      font-size:14px;
+      margin-bottom:2px;
+    }
+
+    .day .mini{
+      font-size:10px;
+      opacity:.9;
+      line-height:1.2;
+      word-break:break-word;
+    }
+
+    /* 🔥 merah untuk minggu & libur */
+    .day.red{
+      border-color: rgba(255, 90, 90, .55);
+      background: rgba(255, 90, 90, .12);
+    }
+
+    /* highlight hari ini */
+    .day.today{
+      outline:2px solid rgba(120,180,255,.8);
+      outline-offset:1px;
+    }
+
+    #detail{
+      padding:12px;
+      border-radius:14px;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+      font-size:14px;
+      line-height:1.45;
+    }
+
+    .badge{
+      display:inline-block;
+      padding:4px 8px;
+      border-radius:999px;
+      font-size:12px;
+      background:rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.12);
+      margin-right:6px;
+      margin-top:6px;
+    }
+
+    .badge.red{
+      background: rgba(255, 90, 90, .18);
+      border-color: rgba(255, 90, 90, .45);
+    }
+
+    .install-wrap{
+      display:flex;
+      justify-content:center;
+      margin-top:10px;
+    }
+
+    #installBtn{
+      display:none;
+      width:100%;
+      max-width:260px;
+      background: rgba(120,180,255,.18);
+      border: 1px solid rgba(120,180,255,.35);
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="card">
+    <h1>📅 Kalender Pasaran Jawa + Hijriah + Cina + Nasional</h1>
+
+    <div class="toolbar">
+      <button id="prevBtn">⬅️</button>
+      <select id="monthSelect"></select>
+      <select id="yearSelect"></select>
+      <button id="nextBtn">➡️</button>
+      <button id="todayBtn">Hari Ini</button>
+    </div>
+
+    <div class="toolbar2">
+      <input id="datePicker" type="date" />
+      <button id="goDateBtn">🔎 Cari tanggal</button>
+    </div>
+
+    <div class="install-wrap">
+      <button id="installBtn">⬇️ Install Aplikasi</button>
+    </div>
+
+    <div class="hint">💡 Minggu & tanggal merah ditandai warna merah</div>
+  </div>
+
+  <div class="card">
+    <div class="grid-head">
+      <div>Min</div><div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div>
+    </div>
+    <div id="daysGrid"></div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0 0 10px 0;">📌 Detail</h3>
+    <div id="detail">Memuat…</div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
