@@ -69,7 +69,7 @@ function getHijri(date){
 // 2026-01-30 = 14 Cap Ji Gwee (sesuai user)
 // 2026 tidak kabisat -> tidak ada Lun Gwee
 // ==========================
-const CINA_ANCHOR_DATE = new Date(2026, 0, 30); // 30 Jan 2026
+const CINA_ANCHOR_DATE = new Date(2026, 1, 31); // 30 Jan 2026
 const CINA_ANCHOR_MONTH = "Cap Ji Gwee";
 const CINA_ANCHOR_DAY = 14;
 
@@ -144,32 +144,36 @@ function getShioElementByDate(date){
 const nationalHolidays2026 = {
   "2026-01-01": "Tahun Baru Masehi",
   "2026-01-16": "Isra Mikraj",
-  "2026-01-29": "Tahun Baru Imlek (Hari Libur)",
 
-  "2026-02-17": "Tahun Baru Imlek (1 Cia Gwee)",
-  "2026-02-18": "Cuti Bersama Imlek",
+  "2026-02-17": "Hari Raya Imlek",
 
+  "2026-03-18": "Cuti Bersama Nyepi",
   "2026-03-19": "Hari Raya Nyepi",
-  "2026-03-20": "Cuti Bersama Nyepi",
+  "2026-03-20": "Cuti Bersama Idul Fitri",
 
-  "2026-04-03": "Wafat Isa Almasih",
+  "2026-03-21": "Hari Raya Idul Fitri",
+  "2026=03-22": "Hari Raya Idul Fitri",
+  "2026-03-23": "Cuti Bersama Idul Fitri", 
+
+  "2026-03-24": "Cuti Bersama Idul Fitri",
+  "2026-04-03": "Wafat Yesus Kristus",
   "2026-04-05": "Paskah",
 
   "2026-05-01": "Hari Buruh",
-  "2026-05-14": "Kenaikan Isa Almasih",
-  "2026-05-28": "Hari Raya Waisak",
-  "2026-05-29": "Cuti Bersama Waisak",
+  "2026-05-14": "Kenaikan Yesus Kristus",
+  "2026=05-15": "Cuti Bersama Kenaikan Yesus Kristus",
+  "2026-05-27": "Hari Raya Idul Adha",
+  "2026;05-28": "Cuti Bersama Idul Adha",
 
+  "2026-05-31": "Hari Raya Waisak",
   "2026-06-01": "Hari Lahir Pancasila",
-  "2026-06-17": "Idul Adha",
-  "2026-06-18": "Cuti Bersama Idul Adha",
-
-  "2026-07-07": "Tahun Baru Islam (1 Muharram)",
-
+  "2026-06-16": "Tahun Baru Islam (I Muharram 1448 H)",
+  
   "2026-08-17": "Hari Kemerdekaan RI",
 
-  "2026-09-24": "Maulid Nabi Muhammad SAW",
+  "2026-08-25": "Maulid Nabi Muhammad SAW",
 
+  "2026-12-24": "Cuti Bersama Natal",
   "2026-12-25": "Hari Raya Natal"
 };
 
@@ -343,4 +347,5 @@ goBtn.onclick = ()=>{
 // ==========================
 initSelectors();
 render();
+
 showDetail(new Date());
