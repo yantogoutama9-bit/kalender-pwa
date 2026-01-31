@@ -1,10 +1,11 @@
 {
-  "name": "Kalender Lengkap",
-  "short_name": "Kalender",
+  "name": "Kalender Lengkap 2026",
+  "short_name": "Kalender2026",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0b1220",
-  "theme_color": "#0b1220",
+  "background_color": "#1a472a",
+  "theme_color": "#1a472a",
+  "description": "Kalender Pasaran Jawa + Hijriah + Cina + Nasional 2026",
   "icons": [
     {
       "src": "icon-192.png",
