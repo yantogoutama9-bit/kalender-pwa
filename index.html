@@ -1,212 +1,56 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Kalender Lengkap (PWA)</title>
-
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0b1220">
-  <link rel="apple-touch-icon" href="icon-192.png">
-
-  <style>
-    *{ box-sizing:border-box; }
-
-    body{
-      margin:0;
-      padding:14px;
-      max-width:100vw;
-      overflow-x:hidden;
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      background:#0b1220;
-      color:#e8eefc;
-    }
-
-    body > *{
-      max-width:560px;
-      margin-left:auto;
-      margin-right:auto;
-    }
-
-    h1{
-      font-size:20px;
-      line-height:1.2;
-      margin:10px 0 12px;
-      text-align:center;
-      font-weight:800;
-    }
-
-    .card{
-      background:rgba(255,255,255,.06);
-      border:1px solid rgba(255,255,255,.10);
-      border-radius:18px;
-      padding:12px;
-      margin-bottom:12px;
-      box-shadow:0 8px 30px rgba(0,0,0,.18);
-    }
-
-    .toolbar{
-      display:flex;
-      gap:8px;
-      align-items:center;
-      justify-content:center;
-      flex-wrap:wrap;
-      margin-top:8px;
-    }
-
-    select, button, input[type="date"]{
-      padding:10px 12px;
-      border-radius:12px;
-      border:1px solid rgba(255,255,255,.15);
-      background:rgba(255,255,255,.08);
-      color:inherit;
-      font-size:14px;
-      outline:none;
-    }
-
-    button{ cursor:pointer; }
-    button:active{ transform:scale(.98); }
-
-    .gridHead{
-      display:grid;
-      grid-template-columns:repeat(7, minmax(0,1fr));
-      gap:6px;
-      margin-bottom:8px;
-      opacity:.9;
-      font-size:12px;
-      text-align:center;
-    }
-
-    #daysGrid{
-      display:grid;
-      grid-template-columns:repeat(7, minmax(0,1fr));
-      gap:6px;
-      width:100%;
-    }
-
-    .day{
-      min-height:72px;
-      padding:8px 8px 6px;
-      border-radius:14px;
-      background:rgba(255,255,255,.06);
-      border:1px solid rgba(255,255,255,.10);
-      overflow:hidden;
-      cursor:pointer;
-      transition:.12s ease;
-    }
-
-    .day:hover{
-      background:rgba(255,255,255,.10);
-    }
-
-    .day.muted{
-      background:transparent;
-      border:0;
-      cursor:default;
-    }
-
-    .day .num{
-      font-weight:900;
-      font-size:14px;
-      margin-bottom:3px;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:6px;
-    }
-
-    .badge{
-      font-size:10px;
-      padding:2px 7px;
-      border-radius:999px;
-      background:rgba(255,255,255,.10);
-      border:1px solid rgba(255,255,255,.14);
-      opacity:.95;
-      white-space:nowrap;
-    }
-
-    .mini{
-      font-size:10px;
-      opacity:.88;
-      line-height:1.25;
-      word-break:break-word;
-    }
-
-    .isSunday{
-      border-color:rgba(255,90,90,.55) !important;
-      background:rgba(255,90,90,.12) !important;
-    }
-
-    .isHoliday{
-      border-color:rgba(255,90,90,.85) !important;
-      background:rgba(255,90,90,.18) !important;
-    }
-
-    .selected{
-      outline:2px solid rgba(130,200,255,.9);
-    }
-
-    #detail{
-      margin-top:10px;
-      padding:12px;
-      border-radius:16px;
-      background:rgba(255,255,255,.06);
-      border:1px solid rgba(255,255,255,.10);
-      line-height:1.45;
-      font-size:13px;
-    }
-
-    .hint{
-      font-size:12px;
-      opacity:.75;
-      text-align:center;
-      margin-top:8px;
-    }
-
-    .rowSearch{
-      display:flex;
-      gap:8px;
-      align-items:center;
-      justify-content:center;
-      flex-wrap:wrap;
-      margin-top:8px;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kalender Lengkap 2026</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a472a">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:linear-gradient(to bottom,#2c6a3f,#a8e6a2);color:#fff;padding:12px;min-height:100vh;}
+  h1,h2,h3{margin-bottom:8px;text-align:center;}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:12px;}
+  select,button,input{padding:10px 12px;border-radius:12px;border:none;font-size:14px;}
+  button{cursor:pointer;background:#14532d;color:#fff;}
+  #daysGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;}
+  .day{background:rgba(255,255,255,0.15);border-radius:20px;min-height:80px;padding:6px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;transition:0.2s;}
+  .day:hover{background:rgba(255,255,255,0.25);}
+  .day.muted{background:transparent;cursor:default;}
+  .day .num{font-weight:700;font-size:18px;}
+  .day .mini{font-size:12px;line-height:1.2;}
+  .day.libur{background:#ff4d4d;color:#fff;}
+  #detail{margin-top:12px;padding:12px;border-radius:16px;background:rgba(0,0,0,0.3);}
+  #searchContainer{display:flex;justify-content:center;gap:8px;margin-bottom:12px;}
+  #searchDate{padding:10px;border-radius:12px;border:none;font-size:14px;}
+</style>
 </head>
-
 <body>
 
-  <div class="card">
-    <h1>📅 Kalender Pasaran Jawa + Hijriah + Cina + Nasional</h1>
+<h2>📅 Kalender Pasaran Jawa + Hijriah + Cina + Nasional 2026</h2>
 
-    <div class="toolbar">
-      <button id="prevBtn">⬅️</button>
-      <select id="monthSelect"></select>
-      <select id="yearSelect"></select>
-      <button id="nextBtn">➡️</button>
-      <button id="todayBtn">Hari Ini</button>
-    </div>
+<div class="toolbar">
+  <button id="prevBtn">⬅️</button>
+  <select id="monthSelect"></select>
+  <select id="yearSelect"></select>
+  <button id="nextBtn">➡️</button>
+  <button id="todayBtn">Hari Ini</button>
+</div>
 
-    <div class="rowSearch">
-      <input type="date" id="datePicker">
-      <button id="goDateBtn">Cari tanggal</button>
-    </div>
+<div id="searchContainer">
+  <input type="date" id="searchDate">
+  <button id="searchBtn">Cari Tanggal</button>
+</div>
 
-    <div class="hint">🔴 Minggu & Hari Libur Nasional otomatis merah</div>
-  </div>
+<div class="grid" style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:14px;margin-bottom:4px;">
+  <div>Min</div><div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div>
+</div>
 
-  <div class="card">
-    <div class="gridHead">
-      <div>Min</div><div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div>
-    </div>
-    <div id="daysGrid"></div>
-  </div>
+<div id="daysGrid"></div>
 
-  <div class="card">
-    <h3 style="margin:0 0 8px 0;">📌 Detail</h3>
-    <div id="detail">Loading…</div>
-  </div>
+<div id="detail">Klik tanggal dulu…</div>
 
-  <script src="./app.js?v=2026-final-1"></script>
+<script src="app.js"></script>
 </body>
 </html>
