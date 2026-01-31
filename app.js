@@ -1,214 +1,264 @@
-// ==========================
+console.log("APP.JS VERSION: 2026-final-1");
+
+// ===============================
 // PWA Register
-// ==========================
+// ===============================
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", async () => {
-    try {
-      await navigator.serviceWorker.register("./kalender-pwa/sw.js");
-    } catch (e) {
-      console.log("SW failed", e);
-    }
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js");
   });
 }
 
-// ==========================
-// Data dasar
-// ==========================
+// ===============================
+// Data Dasar
+// ===============================
 const monthNames = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
 const dino = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
 const pasaran = ["Legi","Pahing","Pon","Wage","Kliwon"];
 
-// ==========================
-// Helper tanggal (ANTI timezone bug)
-// ==========================
-function pad2(n){ return String(n).padStart(2,"0"); }
-function keyYMD(date){
-  return `${date.getFullYear()}-${pad2(date.getMonth()+1)}-${pad2(date.getDate())}`;
-}
-function normalizeLocal(d){
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
-function diffDaysLocal(a, b){
-  return Math.round((normalizeLocal(a) - normalizeLocal(b)) / 86400000);
-}
-function daysInMonth(y,m){ return new Date(y,m+1,0).getDate(); }
-
-// ==========================
-// PASARAN (Permanen & Akurat)
-// Anchor user: 2026-01-30 = Jumat Pahing
-// ==========================
-const PASARAN_ANCHOR_DATE = new Date(2026, 0, 30); // 30 Jan 2026
-const PASARAN_ANCHOR_INDEX = pasaran.indexOf("Pahing");
+// ===============================
+// 🔥 FIX PASARAN PERMANEN
+// Patokan user: 2026-01-30 = Jumat Pahing
+// ===============================
+const pasaranAnchorDate = new Date("2026-01-30T00:00:00");
+const pasaranAnchorIndex = 1; // Pahing
 
 function getPasaran(date){
-  const delta = diffDaysLocal(date, PASARAN_ANCHOR_DATE);
-  const idx = (PASARAN_ANCHOR_INDEX + delta) % 5;
-  return pasaran[(idx + 5) % 5];
+  const d = new Date(date);
+  d.setHours(0,0,0,0);
+
+  const diffDays = Math.round((d - pasaranAnchorDate) / (24*60*60*1000));
+  const idx = (pasaranAnchorIndex + (diffDays % 5) + 5) % 5;
+  return pasaran[idx];
 }
+
 function getWeton(date){
   return `${dino[date.getDay()]} ${getPasaran(date)}`;
 }
 
-// ==========================
-// Hijriah (Format H, bukan SM)
-// ==========================
+// ===============================
+// Hijriah (JANGAN DIUBAH-UBAH)
+// Pakai sistem browser langsung
+// ===============================
 function getHijri(date){
   try{
-    const fmt = new Intl.DateTimeFormat("id-ID-u-ca-islamic", {
-      day:"numeric",
-      month:"long",
-      year:"numeric"
+    let s = new Intl.DateTimeFormat("id-ID-u-ca-islamic",{
+      day:"numeric",month:"long",year:"numeric"
     }).format(date);
 
-    // beberapa device tulis "SM", kita paksa jadi "H"
-    return fmt.replace(/\s*SM$/i,"").trim() + " H";
+    // Biar belakangnya H, bukan "SM" atau aneh2
+    // beberapa device kadang keluarnya "... 1447 H" sudah oke
+    // kalau keluarnya "... 1447 AH" juga oke, kita rapihin dikit
+    s = s.replace(/\bAH\b/g, "H");
+    s = s.replace(/\bSM\b/g, "H"); // kalau ada bug device
+    return s;
   }catch(e){
     return "Hijriah tidak tersedia";
   }
 }
 
-// ==========================
-// TANGGAL CINA (CUSTOM, AKURAT)
-// Anchor: 2026-01-30 = 14 Cap Ji Gwee
-// Tahun 2026 NON-kabisat (tidak pakai Lun Gwee)
-// ==========================
-const CINA_ANCHOR_DATE = new Date(2026, 1, 31);
-const CINA_ANCHOR_MONTH = "Cap Ji Gwee";
-const CINA_ANCHOR_DAY = 14;
-
-const cinaMonths = [
-  { name: "Cia Gwee", days: 30 },
-  { name: "Ji Gwee", days: 29 },
-  { name: "Sa Gwee", days: 30 },
-  { name: "Si Gwee", days: 30 },
-  { name: "Go Gwee", days: 29 },
-  { name: "Lak Gwee", days: 30 },
-  { name: "Cit Gwee", days: 29 },
-  { name: "Peh Gwee", days: 29 },    // 2026 non-kabisat
-  { name: "Kauw Gwee", days: 29 },   // 2026 non-kabisat
-  { name: "Cap Gwee", days: 29 },
-  { name: "Cap It Gwee", days: 29 },
-  { name: "Cap Ji Gwee", days: 30 }
-];
-
-function getMonthIndexByName(name){
-  return cinaMonths.findIndex(m => m.name === name);
-}
-
-function getChineseDateCustom(date){
-  const delta = diffDaysLocal(date, CINA_ANCHOR_DATE);
-  let day = CINA_ANCHOR_DAY + delta;
-  let monthIndex = getMonthIndexByName(CINA_ANCHOR_MONTH);
-
-  if(monthIndex < 0) return { label: "Tidak tersedia" };
-
-  // maju
-  while(day > cinaMonths[monthIndex].days){
-    day -= cinaMonths[monthIndex].days;
-    monthIndex++;
-    if(monthIndex >= cinaMonths.length){
-      // kalau lewat siklus, tetap aman tampil (biar gak blank)
-      monthIndex = cinaMonths.length - 1;
-      day = cinaMonths[monthIndex].days;
-      break;
-    }
+// ===============================
+// 🔥 Hari Libur Nasional 2026 (CUMA ini)
+// Format: "MM-DD": "Nama Libur"
+// ===============================
+const holidaysByYear = {
+  2026: {
+    "01-01": "Tahun Baru Masehi",
+    "01-16": "Isra Mikraj Nabi Muhammad SAW",
+    "02-16": "Cuti Bersama Tahun Baru Imlek",
+    "02-17": "Tahun Baru Imlek 2577 Kongzili",
+    "03-18": "Cuti Bersama Hari Raya Nyepi",
+    "03-19": "Hari Raya Nyepi (Tahun Baru Saka 1948)",
+    "03-20": "Idul Fitri 1447 H",
+    "03-21": "Idul Fitri 1447 H",
+    "03-23": "Cuti Bersama Idul Fitri",
+    "03-24": "Cuti Bersama Idul Fitri",
+    "04-03": "Wafat Isa Almasih",
+    "05-01": "Hari Buruh Internasional",
+    "05-14": "Kenaikan Isa Almasih",
+    "05-15": "Cuti Bersama Kenaikan Isa Almasih",
+    "05-27": "Idul Adha 1447 H",
+    "05-28": "Cuti Bersama Idul Adha",
+    "05-31": "Hari Raya Waisak 2570 BE",
+    "06-01": "Hari Lahir Pancasila",
+    "06-16": "Tahun Baru Islam (1 Muharram 1448 H)",
+    "08-17": "Hari Kemerdekaan RI",
+    "08-25": "Maulid Nabi Muhammad SAW",
+    "12-24": "Cuti Bersama Natal",
+    "12-25": "Hari Raya Natal"
   }
-
-  // mundur
-  while(day <= 0){
-    monthIndex--;
-    if(monthIndex < 0){
-      monthIndex = 0;
-      day = 1;
-      break;
-    }
-    day += cinaMonths[monthIndex].days;
-  }
-
-  return { label: `${day} ${cinaMonths[monthIndex].name}` };
-}
-
-// ==========================
-// SHIO & ELEMEN (FIX PER TANGGAL IMLEK)
-// Sebelum 17 Feb 2026 = Ular Kayu
-// Mulai 17 Feb 2026 = Kuda Api
-// ==========================
-const IMLEK_2026 = new Date(2026, 2, 17); // 17 Feb 2026
-
-function getShioElementByDate(date){
-  const d = normalizeLocal(date);
-  const cut = normalizeLocal(IMLEK_2026);
-
-  if(d < cut){
-    return { shio: "Ular", elemen: "Kayu" };
-  }
-  return { shio: "Kuda", elemen: "Api" };
-}
-
-// ==========================
-// Libur Nasional 2026 (FIX: 29 Jan BUKAN libur)
-// ==========================
-const nationalHolidays2026 = {
-  "2026-01-01": "Tahun Baru Masehi",
-  "2026-01-16": "Isra Mikraj",
-
-  "2026-02-17": "Hari Raya Imlek",
-
-  "2026-03-18": "Cuti Bersama Nyepi",
-  "2026-03-19": "Hari Raya Nyepi",
-  "2026-03-20": "Cuti Bersama Idul Fitri",
-
-  "2026-03-21": "Hari Raya Idul Fitri",
-  "2026=03-22": "Hari Raya Idul Fitri",
-  "2026-03-23": "Cuti Bersama Idul Fitri", 
-
-  "2026-03-24": "Cuti Bersama Idul Fitri",
-  "2026-04-03": "Wafat Yesus Kristus",
-  "2026-04-05": "Paskah",
-
-  "2026-05-01": "Hari Buruh",
-  "2026-05-14": "Kenaikan Yesus Kristus",
-  "2026=05-15": "Cuti Bersama Kenaikan Yesus Kristus",
-  "2026-05-27": "Hari Raya Idul Adha",
-  "2026;05-28": "Cuti Bersama Idul Adha",
-
-  "2026-05-31": "Hari Raya Waisak",
-  "2026-06-01": "Hari Lahir Pancasila",
-  "2026-06-16": "Tahun Baru Islam (I Muharram 1448 H)",
-  
-  "2026-08-17": "Hari Kemerdekaan RI",
-
-  "2026-08-25": "Maulid Nabi Muhammad SAW",
-
-  "2026-12-24": "Cuti Bersama Natal",
-  "2026-12-25": "Hari Raya Natal"
 };
 
-// ==========================
-// UI Elements
-// ==========================
+function pad2(n){ return String(n).padStart(2,"0"); }
+function isoKeyMMDD(date){
+  return `${pad2(date.getMonth()+1)}-${pad2(date.getDate())}`;
+}
+function getHoliday(date){
+  const y = date.getFullYear();
+  const key = isoKeyMMDD(date);
+  if (holidaysByYear[y] && holidaysByYear[y][key]) return holidaysByYear[y][key];
+  return null;
+}
+
+// ===============================
+// 🔥 Penanggalan Cina FIX (Sesuai patokan lo)
+// Patokan:
+// - 2026-01-31 = 14 Cap Ji Gwee
+// - 2026-02-17 = 1 Cia Gwee (Imlek)
+// - 2026 bukan kabisat
+// ===============================
+
+// Nama bulan Cina (Hokkien Indonesia)
+const cinaMonthNames = [
+  "Cia Gwee",      // 1
+  "Ji Gwee",       // 2
+  "Sa Gwee",       // 3
+  "Si Gwee",       // 4
+  "Go Gwee",       // 5
+  "Lak Gwee",      // 6
+  "Cit Gwee",      // 7
+  "Pe Gwee",       // 8
+  "Kauw Gwee",     // 9
+  "Cap Gwee",      // 10
+  "Cap It Gwee",   // 11
+  "Cap Ji Gwee"    // 12
+];
+
+// Tahun 2026: kita pakai siklus bulan yang lo kasih (non kabisat)
+// Ini versi aman: kita pakai anchor date untuk memastikan 31 Jan = 14 Cap Ji Gwee
+// dan 17 Feb = 1 Cia Gwee.
+// Artinya: dari 17 Feb, kita jalan maju hitung hari dan bulan pakai panjang bulan.
+// Untuk sebelum 17 Feb, kita jalan mundur dari 31 Jan.
+
+const cinaMonthLengths2026 = {
+  // 1..12 (tanpa kabisat)
+  1: 30,  // Cia Gwee
+  2: 29,  // Ji Gwee
+  3: 30,  // Sa Gwee
+  4: 30,  // Si Gwee
+  5: 29,  // Go Gwee
+  6: 30,  // Lak Gwee
+  7: 29,  // Cit Gwee
+  8: 29,  // Pe Gwee (ambil 29 dulu)
+  9: 29,  // Kauw Gwee (ambil 29 dulu)
+  10: 29, // Cap Gwee
+  11: 29, // Cap It Gwee
+  12: 30  // Cap Ji Gwee
+};
+
+// Anchor 1: Imlek
+const cinaAnchorImlek = new Date("2026-02-17T00:00:00"); // 1 Cia Gwee
+const cinaAnchorImlekMonth = 1;
+const cinaAnchorImlekDay = 1;
+
+// Anchor 2: user "hari ini"
+const cinaAnchorToday = new Date("2026-01-31T00:00:00"); // 14 Cap Ji Gwee
+const cinaAnchorTodayMonth = 12;
+const cinaAnchorTodayDay = 14;
+
+function addDays(date, n){
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+function diffDays(a,b){
+  // b - a
+  const A = new Date(a); A.setHours(0,0,0,0);
+  const B = new Date(b); B.setHours(0,0,0,0);
+  return Math.round((B - A) / (24*60*60*1000));
+}
+
+function normalizeCinaMonth(m){
+  while(m < 1) m += 12;
+  while(m > 12) m -= 12;
+  return m;
+}
+
+function getCinaDate2026(date){
+  const d = new Date(date);
+  d.setHours(0,0,0,0);
+
+  // Kalau tahun selain 2026, kita tetap tampilkan "—" biar gak ngaco
+  if (d.getFullYear() !== 2026){
+    return null;
+  }
+
+  // Kita pastikan konsisten dengan dua anchor:
+  // - untuk tanggal >= 2026-02-17, hitung maju dari Imlek
+  // - untuk tanggal <= 2026-02-16, hitung mundur dari 2026-01-31 anchor
+  if (d >= cinaAnchorImlek){
+    let month = cinaAnchorImlekMonth;
+    let day = cinaAnchorImlekDay;
+
+    let steps = diffDays(cinaAnchorImlek, d); // maju
+    while(steps > 0){
+      day++;
+      const maxDay = cinaMonthLengths2026[month];
+      if (day > maxDay){
+        day = 1;
+        month = normalizeCinaMonth(month + 1);
+      }
+      steps--;
+    }
+
+    return { day, month, monthName: cinaMonthNames[month-1] };
+  } else {
+    // mundur dari 31 Jan 2026 = 14 Cap Ji Gwee
+    let month = cinaAnchorTodayMonth;
+    let day = cinaAnchorTodayDay;
+
+    let steps = diffDays(d, cinaAnchorToday); // maju dari d ke anchor => berarti kita mundur steps
+    while(steps > 0){
+      day--;
+      if (day < 1){
+        month = normalizeCinaMonth(month - 1);
+        day = cinaMonthLengths2026[month];
+      }
+      steps--;
+    }
+
+    return { day, month, monthName: cinaMonthNames[month-1] };
+  }
+}
+
+// ===============================
+// 🔥 Shio + Elemen FIX sesuai patokan user
+// - sebelum 17 Feb 2026: Ular Kayu
+// - mulai 17 Feb 2026 s/d akhir 2026: Kuda Api
+// ===============================
+const shioSwitchDate = new Date("2026-02-17T00:00:00");
+
+function getShioElemen(date){
+  const d = new Date(date);
+  d.setHours(0,0,0,0);
+
+  if (d >= shioSwitchDate){
+    return { shio: "Kuda", elemen: "Api" };
+  }
+  return { shio: "Ular", elemen: "Kayu" };
+}
+
+// ===============================
+// UI Logic
+// ===============================
 const monthSelect = document.getElementById("monthSelect");
 const yearSelect  = document.getElementById("yearSelect");
 const daysGrid    = document.getElementById("daysGrid");
 const detail      = document.getElementById("detail");
-const dowHead     = document.getElementById("dowHead");
-const searchDate  = document.getElementById("searchDate");
-const goBtn       = document.getElementById("goBtn");
 
-// ==========================
-// Init Selectors
-// ==========================
+const datePicker  = document.getElementById("datePicker");
+const goDateBtn   = document.getElementById("goDateBtn");
+
 let viewDate = new Date();
+let selectedCell = null;
+
+function daysInMonth(y,m){
+  return new Date(y,m+1,0).getDate();
+}
 
 function initSelectors(){
-  dowHead.innerHTML = "";
-  ["Min","Sen","Sel","Rab","Kam","Jum","Sab"].forEach(h=>{
-    const el = document.createElement("div");
-    el.textContent = h;
-    dowHead.appendChild(el);
-  });
-
-  monthSelect.innerHTML = "";
   monthNames.forEach((m,i)=>{
     const opt = document.createElement("option");
     opt.value = i;
@@ -216,25 +266,44 @@ function initSelectors(){
     monthSelect.appendChild(opt);
   });
 
-  yearSelect.innerHTML = "";
-  const thisYear = new Date().getFullYear();
-  for(let y=thisYear-50; y<=thisYear+50; y++){
-    const opt = document.createElement("option");
-    opt.value = y;
-    opt.textContent = y;
+  // biar gampang: fokus 2026 aja, tapi tetap bisa geser
+  for(let y=2025;y<=2027;y++){
+    const opt=document.createElement("option");
+    opt.value=y; opt.textContent=y;
     yearSelect.appendChild(opt);
   }
 }
 
-// ==========================
-// Render Kalender
-// ==========================
+function clearSelected(){
+  if (selectedCell) selectedCell.classList.remove("selected");
+  selectedCell = null;
+}
+
+function showDetail(date){
+  const holiday = getHoliday(date);
+  const weton = getWeton(date);
+  const hijri = getHijri(date);
+  const cina = getCinaDate2026(date);
+  const sh = getShioElemen(date);
+
+  const cinaText = cina ? `${cina.day} ${cina.monthName}` : "—";
+
+  detail.innerHTML = `
+    <b>${dino[date.getDay()]}, ${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}</b><br><br>
+    🌙 Hijriah: <b>${hijri}</b><br>
+    🧿 Jawa (Weton): <b>${weton}</b><br>
+    🧧 Cina: <b>${cinaText}</b><br>
+    🐲 Shio: <b>${sh.shio}</b> | 🔥 Elemen: <b>${sh.elemen}</b><br>
+    🎌 Libur: <b>${holiday ? holiday : "Tidak ada"}</b>
+  `;
+}
+
 function render(){
   const y = viewDate.getFullYear();
   const m = viewDate.getMonth();
 
   monthSelect.value = m;
-  yearSelect.value  = y;
+  yearSelect.value = y;
 
   daysGrid.innerHTML = "";
 
@@ -242,114 +311,97 @@ function render(){
   const startDow = first.getDay();
   const total = daysInMonth(y,m);
 
+  // blank awal
   for(let i=0;i<startDow;i++){
-    const blank = document.createElement("div");
-    blank.className = "mutedCell";
+    const blank=document.createElement("div");
+    blank.className="day muted";
     daysGrid.appendChild(blank);
   }
 
-  const today = new Date();
-  const todayKey = keyYMD(today);
-
   for(let d=1; d<=total; d++){
     const date = new Date(y,m,d);
-    const k = keyYMD(date);
-
-    const weton = getWeton(date);
-    const holidayName = nationalHolidays2026[k];
-
-    const isSunday = date.getDay() === 0;
-    const isHoliday = !!holidayName || isSunday;
+    date.setHours(0,0,0,0);
 
     const cell = document.createElement("div");
     cell.className = "day";
-    if(isHoliday) cell.classList.add("holiday");
-    if(k === todayKey) cell.classList.add("today");
+
+    const holiday = getHoliday(date);
+    const isSunday = (date.getDay() === 0);
+
+    if (isSunday) cell.classList.add("isSunday");
+    if (holiday) cell.classList.add("isHoliday");
+
+    const weton = getWeton(date);
 
     cell.innerHTML = `
-      <div class="numRow">
-        <div class="num">${d}</div>
-        <div class="tag">${weton.split(" ")[1]}</div>
+      <div class="num">
+        <span>${d}</span>
+        ${holiday ? `<span class="badge">Libur</span>` : (isSunday ? `<span class="badge">Minggu</span>` : "")}
       </div>
       <div class="mini">${weton}</div>
-      ${holidayName ? `<div class="mini">🎌 ${holidayName}</div>` : ""}
+      ${holiday ? `<div class="mini">🎌 ${holiday}</div>` : ""}
     `;
 
-    cell.onclick = ()=> showDetail(date);
+    cell.addEventListener("click", ()=>{
+      clearSelected();
+      selectedCell = cell;
+      cell.classList.add("selected");
+      showDetail(date);
+    });
+
     daysGrid.appendChild(cell);
   }
 }
 
-// ==========================
-// Detail
-// ==========================
-function showDetail(date){
-  const k = keyYMD(date);
-  const holidayName = nationalHolidays2026[k];
-
-  const hijri = getHijri(date);
-  const weton = getWeton(date);
-  const chinaDate = getChineseDateCustom(date);
-  const shioElem = getShioElementByDate(date);
-
-  detail.innerHTML = `
-    <div><span class="k">Tanggal:</span> <span class="v">${dino[date.getDay()]}, ${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}</span></div>
-    <div class="hr"></div>
-
-    <div>🧿 <span class="k">Weton Jawa:</span> <span class="v">${weton}</span></div>
-    <div>🌙 <span class="k">Hijriah:</span> <span class="v">${hijri}</span></div>
-    <div>🧧 <span class="k">Tanggal Cina:</span> <span class="v">${chinaDate.label}</span></div>
-    <div>🐲 <span class="k">Shio Tahun:</span> <span class="v">${shioElem.shio}</span></div>
-    <div>🔥 <span class="k">Elemen:</span> <span class="v">${shioElem.elemen}</span></div>
-
-    <div class="hr"></div>
-    <div>🎌 <span class="k">Libur:</span> <span class="v">${holidayName ? holidayName : (date.getDay()===0 ? "Minggu" : "Tidak ada")}</span></div>
-  `;
-}
-
-// ==========================
-// Controls
-// ==========================
-document.getElementById("prevBtn").onclick = ()=>{
+// ===============================
+// Event Controls
+// ===============================
+document.getElementById("prevBtn").onclick=()=>{
   viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()-1, 1);
   render();
 };
-document.getElementById("nextBtn").onclick = ()=>{
+
+document.getElementById("nextBtn").onclick=()=>{
   viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()+1, 1);
   render();
 };
-document.getElementById("todayBtn").onclick = ()=>{
+
+document.getElementById("todayBtn").onclick=()=>{
   const now = new Date();
+  now.setHours(0,0,0,0);
   viewDate = new Date(now.getFullYear(), now.getMonth(), 1);
   render();
   showDetail(now);
 };
 
-monthSelect.onchange = ()=>{
-  viewDate = new Date(parseInt(yearSelect.value), parseInt(monthSelect.value), 1);
-  render();
-};
-yearSelect.onchange = ()=>{
+monthSelect.onchange=()=>{
   viewDate = new Date(parseInt(yearSelect.value), parseInt(monthSelect.value), 1);
   render();
 };
 
-goBtn.onclick = ()=>{
-  if(!searchDate.value) return;
-  const [yy,mm,dd] = searchDate.value.split("-").map(Number);
-  const target = new Date(yy, mm-1, dd);
-  viewDate = new Date(target.getFullYear(), target.getMonth(), 1);
+yearSelect.onchange=()=>{
+  viewDate = new Date(parseInt(yearSelect.value), parseInt(monthSelect.value), 1);
   render();
-  showDetail(target);
 };
 
-// ==========================
+goDateBtn.onclick=()=>{
+  if (!datePicker.value) return;
+  const chosen = new Date(datePicker.value + "T00:00:00");
+  viewDate = new Date(chosen.getFullYear(), chosen.getMonth(), 1);
+  render();
+  showDetail(chosen);
+};
+
+// ===============================
 // Init
-// ==========================
+// ===============================
 initSelectors();
 render();
 
-// auto buka detail hari ini pas app dibuka
+// Auto buka detail "Hari Ini" saat app dibuka
+const now = new Date();
+now.setHours(0,0,0,0);
+showDetail(now);
 
-showDetail(new Date());
-
+// default datePicker = hari ini
+datePicker.value = `${now.getFullYear()}-${pad2(now.getMonth()+1)}-${pad2(now.getDate())}`;
