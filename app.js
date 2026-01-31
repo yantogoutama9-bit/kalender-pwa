@@ -72,7 +72,7 @@ function getHijri(date){
 // Anchor: 2026-01-30 = 14 Cap Ji Gwee
 // Tahun 2026 NON-kabisat (tidak pakai Lun Gwee)
 // ==========================
-const CINA_ANCHOR_DATE = new Date(2026, 0, 30);
+const CINA_ANCHOR_DATE = new Date(2026, 1, 31);
 const CINA_ANCHOR_MONTH = "Cap Ji Gwee";
 const CINA_ANCHOR_DAY = 14;
 
@@ -133,7 +133,7 @@ function getChineseDateCustom(date){
 // Sebelum 17 Feb 2026 = Ular Kayu
 // Mulai 17 Feb 2026 = Kuda Api
 // ==========================
-const IMLEK_2026 = new Date(2026, 1, 17); // 17 Feb 2026
+const IMLEK_2026 = new Date(2026, 2, 17); // 17 Feb 2026
 
 function getShioElementByDate(date){
   const d = normalizeLocal(date);
@@ -352,4 +352,5 @@ render();
 // auto buka detail hari ini pas app dibuka
 
 showDetail(new Date());
+
 
