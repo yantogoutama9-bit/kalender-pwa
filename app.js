@@ -4,7 +4,7 @@
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      await navigator.serviceWorker.register("./sw.js");
+      await navigator.serviceWorker.register("./kalender-pwa/sw.js");
     } catch (e) {
       console.log("SW failed", e);
     }
@@ -352,3 +352,4 @@ render();
 // auto buka detail hari ini pas app dibuka
 
 showDetail(new Date());
+
