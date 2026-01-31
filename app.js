@@ -152,7 +152,7 @@ const nationalHolidays2026 = {
   "2026-01-01": "Tahun Baru Masehi",
   "2026-01-16": "Isra Mikraj",
 
-  "2026-02-18": "Cuti Bersama Imlek",
+  "2026-02-17": "Hari Raya Imlek",
 
   "2026-03-18": "Cuti Bersama Nyepi",
   "2026-03-19": "Hari Raya Nyepi",
@@ -352,3 +352,4 @@ render();
 // auto buka detail hari ini pas app dibuka
 
 showDetail(new Date());
+
